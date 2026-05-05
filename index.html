@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tarus Field Service - Blum Troubleshooting</title>
+    
+    <!-- Hardcoded Theme & Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        primary: {
+                            50: '#fefce8', 100: '#fef9c3', 200: '#fef08a', 300: '#fde047', 400: '#facc15',
+                            500: '#FFCB05', /* Maize Accent */
+                            600: '#00274C', /* Deep Blue Primary */
+                            700: '#001f3d', 800: '#00182f', 900: '#000f1f',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Icons and Fonts -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        
+        /* Typography & Custom Tags */
+        .val { background-color: #fefce8; color: #000f1f; border: 2px solid #fef08a; font-weight: 900; padding: 0.125rem 0.5rem; border-radius: 0.375rem; margin: 0 0.25rem; font-size: 13px; display: inline-block; }
+        .ui { font-weight: 700; color: #334155; }
+        kbd { background-color: #ffffff; border: 1px solid #cbd5e1; color: #1e293b; border-radius: 0.375rem; padding: 0.125rem 0.5rem; font-size: 0.75rem; font-weight: 700; font-family: monospace; box-shadow: 0 2px 0 #cbd5e1; margin: 0 0.25rem; }
+        
+        /* Navigation */
+        .nav-link.active-tab { background-color: #00274C; color: #ffffff; border-left: 4px solid #FFCB05; }
+        .tab-content { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Editor & Cards */
+        .step-card { position: relative; }
+        body.edit-mode .step-card { transition: all 0.2s; padding-top: 2.5rem !important; }
+        body.edit-mode .step-card:hover { box-shadow: 0 0 0 2px #fde047; }
+        body.edit-mode .step-card.is-editing { outline: 2px dashed #10b981; outline-offset: 4px; z-index: 10; }
+        
+        [contenteditable="true"] { outline: none; border-radius: 4px; transition: all 0.2s; }
+        .editable-body[contenteditable="true"] { background-color: #f8fafc; box-shadow: inset 0 0 0 1px #cbd5e1; padding: 1rem; }
+        
+        /* Custom Checkbox for Exporter */
+        .field-guide-cb { appearance: none; background-color: #fff; margin: 0; width: 1.15em; height: 1.15em; border: 1px solid #94a3b8; border-radius: 0.15em; display: grid; place-content: center; cursor: pointer; }
+        .field-guide-cb::before { content: ""; width: 0.65em; height: 0.65em; transform: scale(0); transition: 120ms transform ease-in-out; box-shadow: inset 1em 1em #FFCB05; background-color: #FFCB05; transform-origin: center; clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%); }
+        .field-guide-cb:checked::before { transform: scale(1); }
+
+        /* LED Diagnostics */
+        .led { height: 12px; width: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; box-shadow: 0 0 2px rgba(0,0,0,0.2); border: 1px solid rgba(0,0,0,0.1); }
+        .led-green { background-color: #22c55e; box-shadow: 0 0 6px #22c55e; }
+        .led-red { background-color: #ef4444; box-shadow: 0 0 6px #ef4444; }
+        .led-blue { background-color: #3b82f6; box-shadow: 0 0 6px #3b82f6; }
+        .led-violet { background-color: #8b5cf6; box-shadow: 0 0 6px #8b5cf6; }
+        .led-white { background-color: #f3f4f6; box-shadow: 0 0 6px #d1d5db; border: 1px solid #9ca3af; }
+        .led-cyan { background-color: #06b6d4; box-shadow: 0 0 6px #06b6d4; }
+        .led-magenta { background-color: #d946ef; box-shadow: 0 0 6px #d946ef; }
+        .led-off { background-color: #525252; border: 1px solid #737373; }
+        .led-blink { animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.4; } }
+        
+        /* Badges & Media */
+        .badge-tarus { background-color: #e0e7ff; color: #1e3a8a; border: 1px solid #c7d2fe; font-size: 0.65rem; padding: 0.1rem 0.3rem; border-radius: 0.25rem; font-weight: bold; text-transform: uppercase; margin-right: 0.25rem; }
+        .badge-siemens { background-color: #f3f4f6; color: #374151; border: 1px solid #d1d5db; font-size: 0.65rem; padding: 0.1rem 0.3rem; border-radius: 0.25rem; font-weight: bold; text-transform: uppercase; margin-right: 0.25rem; }
+        .badge-sproxy { background-color: #fef3c7; color: #92400e; border: 1px solid #fcd34d; font-size: 0.65rem; padding: 0.1rem 0.3rem; border-radius: 0.25rem; font-weight: bold; text-transform: uppercase; margin-right: 0.25rem; }
+        .video-container { background-color: #000; border-radius: 0.25rem; overflow: hidden; margin-bottom: 1rem; border: 1px solid #333; position: relative; }
+        video { width: 100%; display: block; }
+        /* Added max-w-full to prevent mobile bleed */
+        .img-container img { max-width: 100%; max-height: 200px; width: auto; border: 1px solid #e5e7eb; border-radius: 0.25rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden text-slate-800">
+
+    <!-- Mobile Header -->
+    <div class="md:hidden fixed top-0 w-full bg-slate-900 text-white z-40 flex items-center justify-between p-4 shadow-md">
+        <div class="flex items-center gap-3">
+            <img src="images/tarus_logo.png" alt="Tarus Logo" class="h-6 w-auto bg-white rounded px-1" onerror="this.style.display='none'">
+            <h1 class="font-bold tracking-wide uppercase text-sm">Blum Guide</h1>
+        </div>
+        <button id="mobile-menu-btn" class="text-white hover:text-primary-500 focus:outline-none p-2">
+            <i class="fas fa-bars text-xl"></i>
+        </button>
+    </div>
+
+    <!-- Mobile Backdrop -->
+    <div id="mobile-backdrop" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden md:hidden"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-72 bg-slate-900 text-slate-300 flex flex-col fixed inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 z-50 shadow-xl overflow-y-auto">
+        <div class="p-6 border-b border-slate-800 hidden md:flex flex-col items-center">
+            <img src="images/tarus_logo.png" alt="Tarus Logo" class="h-8 mb-3 bg-white rounded px-2 py-1 w-full object-contain" onerror="this.style.display='none'">
+            <div class="text-center w-full">
+                <h1 class="text-sm font-bold tracking-widest uppercase text-white">TARUS Service</h1>
+                <p class="text-[10px] text-primary-500 uppercase tracking-widest mt-1">Blum Field Guide</p>
+            </div>
+        </div>
+
+        <nav class="flex-1 py-4">
+            <ul class="space-y-1">
+                <li><button class="nav-link active-tab w-full text-left px-6 py-3 font-medium transition-colors focus:outline-none flex items-center" data-target="tab-advisories"><i class="fas fa-exclamation-triangle w-6 text-primary-500"></i> Advisories & Crash</button></li>
+                <li><button class="nav-link text-slate-300 hover:bg-slate-800 hover:text-white w-full text-left px-6 py-3 font-medium transition-colors focus:outline-none flex items-center border-l-4 border-transparent" data-target="tab-programming"><i class="fas fa-microchip w-6 text-primary-500"></i> Programming & Pair</button></li>
+                <li><button class="nav-link text-slate-300 hover:bg-slate-800 hover:text-white w-full text-left px-6 py-3 font-medium transition-colors focus:outline-none flex items-center border-l-4 border-transparent" data-target="tab-tc62"><i class="fas fa-bullseye w-6 text-primary-500"></i> TC62 Calibration</button></li>
+                <li><button class="nav-link text-slate-300 hover:bg-slate-800 hover:text-white w-full text-left px-6 py-3 font-medium transition-colors focus:outline-none flex items-center border-l-4 border-transparent" data-target="tab-znano"><i class="fas fa-compress-arrows-alt w-6 text-primary-500"></i> Z-Nano Calibration</button></li>
+                <li><button class="nav-link text-slate-300 hover:bg-slate-800 hover:text-white w-full text-left px-6 py-3 font-medium transition-colors focus:outline-none flex items-center border-l-4 border-transparent" data-target="tab-diagnostics"><i class="fas fa-stethoscope w-6 text-primary-500"></i> Diagnostics & Logs</button></li>
+                <li><button class="nav-link text-slate-300 hover:bg-slate-800 hover:text-white w-full text-left px-6 py-3 font-medium transition-colors focus:outline-none flex items-center border-l-4 border-transparent" data-target="tab-specs"><i class="fas fa-cogs w-6 text-primary-500"></i> Specs</button></li>
+            </ul>
+        </nav>
+
+        <div class="p-4 border-t border-slate-800 bg-slate-900 sticky bottom-0">
+            <button id="edit-toggle-btn" onclick="toggleEditMode()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded transition-colors text-sm mb-3 shadow-md flex justify-center items-center">
+                <i class="fas fa-edit mr-2"></i> Enable Edit Mode
+            </button>
+            <div id="export-tools" class="hidden space-y-2">
+                <button onclick="exportGuide(false)" class="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded transition-colors text-xs border border-primary-500 shadow-md">
+                    <i class="fas fa-save mr-2"></i> Save Master Guide
+                </button>
+                <button onclick="exportGuide(true)" class="w-full bg-primary-500 hover:bg-yellow-500 text-slate-900 font-bold py-2 px-4 rounded transition-colors text-xs shadow-md">
+                    <i class="fas fa-file-export mr-2"></i> Export Custom Field Guide
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto pt-20 pb-24 md:pt-8 px-4 md:px-10 lg:px-16 scroll-smooth">
+        <div class="max-w-4xl mx-auto">
+            
+            <!-- TAB: Advisories & Crash -->
+            <div id="tab-advisories" class="tab-content active">
+                <h2 class="text-2xl font-black text-primary-600 border-b-2 border-primary-500 pb-2 mb-6 uppercase tracking-wide">Advisories & Crash Protocols</h2>
+                
+                <div class="step-card bg-white p-5 rounded-lg shadow-sm border-l-4 border-l-orange-500 border border-gray-200 mb-5">
+                    <div class="editable-body text-sm text-gray-700">
+                        <h3 class="text-orange-600 font-bold text-lg flex items-center mb-2"><i class="fas fa-battery-half mr-3"></i> CRITICAL: Battery Verification</h3>
+                        <p class="mb-2"><span class="ui">⚠️ Do not trust batteries from online marketplaces (e.g., Amazon).</span></p>
+                        <p class="mb-2">Counterfeit batteries are causing probe failures under load.</p>
+                        <ul class="list-disc pl-5 space-y-1">
+                            <li><strong>Approved Source:</strong> <span class="ui">Battery Giant</span> or trusted industrial suppliers.</li>
+                            <li><strong>Protocol:</strong> Meter-check every battery before purchase.</li>
+                            <li><strong>Spec:</strong> 3.6V (Saft LS 14250). <span class="text-red-600 font-bold">Reject if &lt; 3.5V.</span></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="step-card bg-red-50 p-5 rounded-lg shadow-sm border border-red-200 mb-5">
+                    <div class="editable-body text-sm text-gray-800">
+                        <h3 class="text-red-700 font-black text-xl flex items-center mb-1"><i class="fas fa-exclamation-triangle mr-3"></i> EMERGENCY: Dropped / Crashed Unit</h3>
+                        <p class="text-red-600 text-xs font-bold uppercase tracking-wider mb-4">Perform these checks to determine if unit is salvageable.</p>
+                    </div>
+                </div>
+
+                <h4 class="font-bold text-slate-800 text-sm uppercase mb-3 mt-6 border-b border-slate-300 pb-1 tracking-wide"><i class="fas fa-bullseye mr-2 text-slate-400"></i> TC62 Spindle Probe Checks</h4>
+
+                <div class="step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-3">
+                    <div class="editable-body text-sm text-gray-700">
+                        <strong class="text-primary-600 block mb-2 text-base">1. The "Rattle" Check (Electronics)</strong>
+                        <ol class="list-decimal pl-5 space-y-2">
+                            <li>Open battery cap. Inspect for flattened springs.</li>
+                            <li><span class="ui">Reseat batteries.</span> Impact often breaks contact.</li>
+                            <li><span class="ui">Wake Probe:</span> Enable <span class="val">$A_OUT[3]</span> in Siemens Operate (<span class="ui">Machine</span> > <span class="ui">Settings</span> > <span class="ui">NC</span> > <span class="ui">PLC Variab</span>). Set to <span class="val">1</span>.</li>
+                            <li><span class="ui">Check RC66:</span> If lights flash but probe stays dark, board is cracked. <span class="font-bold text-red-600">REPLACE PROBE.</span></li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-3">
+                    <div class="editable-body text-sm text-gray-700">
+                        <strong class="text-primary-600 block mb-2 text-base">2. The "Sticky" Test (Mechanics)</strong>
+                        <ol class="list-decimal pl-5 space-y-2">
+                            <li>Gently push stylus by hand in X, Y, Z.</li>
+                            <li>Listen for the "click". Visual check: does it return to absolute center?</li>
+                            <li>If it feels "gritty" or sticks: <span class="font-bold text-red-600">REPLACE PROBE.</span></li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-3">
+                    <div class="editable-body text-sm text-gray-700">
+                        <strong class="text-primary-600 block mb-2 text-base">3. The Runout Check (Alignment)</strong>
+                        <div class="img-container mt-2">
+                            <img src="images/alignment_screws.png" alt="Alignment Screws Diagram" onerror="this.style.display='none'">
+                        </div>
+                        <ul class="list-disc pl-5 space-y-2 mt-2">
+                            <li><strong>Bent Stem:</strong> If body runs true, just replace Stylus.</li>
+                            <li><strong>High Runout:</strong> Use the 4 concentricity set screws to dial it back in.</li>
+                            <li><strong>Cannot Adjust:</strong> If out of travel, internal shaft is bent. <span class="font-bold text-red-600">REPLACE PROBE.</span></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-6">
+                    <div class="editable-body text-sm text-gray-700">
+                        <strong class="text-primary-600 block mb-2 text-base">4. Final Electronics & Latch Check (PLC)</strong>
+                        <p class="mb-2 italic">If physical checks pass, verify the internal latch signal in Siemens Operate:</p>
+                        <ol class="list-decimal pl-5 space-y-2">
+                            <li><span class="ui">Enable Probe:</span> Go to <span class="ui">Machine</span> > <span class="ui">Settings</span> > <span class="ui">NC</span> > <span class="ui">PLC Variab</span>. Change <span class="val">$A_OUT[3]</span> from <span class="val">0</span> to <span class="val">1</span>.
+                                <br><span class="text-gray-500 text-xs">Device must blink <span class="text-green-600 font-bold">GREEN</span>.</span>
+                            </li>
+                            <li><span class="ui">Monitor PLC:</span> Watch Signal <span class="val">db10.dbx107.0</span> (Probe Feedback).</li>
+                            <li><span class="ui">Test Latch:</span> Deflect the stylus by hand.
+                                <ul class="list-disc pl-4 mt-1 text-gray-500">
+                                    <li><strong>Action:</strong> The bit <span class="val">db10.dbx107.0</span> must toggle <span class="ui">High/Low</span> instantly.</li>
+                                    <li><strong>Fail Condition:</strong> If the bit does not change state, the internal trigger is dead. <span class="font-bold text-red-600">REPLACE PROBE.</span></li>
+                                </ul>
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+
+                <h4 class="font-bold text-slate-800 text-sm uppercase mb-3 mt-6 border-b border-slate-300 pb-1 tracking-wide"><i class="fas fa-microchip mr-2 text-slate-400"></i> Z-Nano Tool Setter Checks</h4>
+
+                <div class="step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-3">
+                    <div class="editable-body text-sm text-gray-700">
+                        <strong class="text-primary-600 block mb-2 text-base">1. The "Plunge" Check (Jamming)</strong>
+                        <ol class="list-decimal pl-5 space-y-2">
+                            <li><strong>Action:</strong> Press the metal touch plate straight down by hand.</li>
+                            <li><strong>Observation:</strong> It must move smoothly (~2mm) and <span class="ui">snap back instantly</span>.</li>
+                            <li><strong>Fail Condition:</strong> If it sticks, returns slowly, or sits crooked: <span class="font-bold text-red-600">REPLACE UNIT.</span> (Internal mechanism bent).</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-3">
+                    <div class="editable-body text-sm text-gray-700">
+                        <strong class="text-primary-600 block mb-2 text-base">2. The "Crunchy" Test (Seal Breach)</strong>
+                        <ol class="list-decimal pl-5 space-y-2">
+                            <li><strong>Action:</strong> Press the plate down and wiggle/rotate it slightly.</li>
+                            <li><strong>Fail Condition:</strong> A "gritty" or "crunchy" feeling means the impact broke the IP68 seal. Coolant has entered the electronics. <span class="font-bold text-red-600">REPLACE UNIT.</span></li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-3">
+                    <div class="editable-body text-sm text-gray-700">
+                        <strong class="text-primary-600 block mb-2 text-base">3. The Battery Contact Check</strong>
+                        <p class="mb-2 italic">Impacts often compress the battery springs, breaking the circuit.</p>
+                        <ul class="list-disc pl-5 space-y-1">
+                            <li>Open the battery cap.</li>
+                            <li>Gently stretch the springs if flattened.</li>
+                            <li>Reseat batteries and check for lights.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-3">
+                    <div class="editable-body text-sm text-gray-700">
+                        <strong class="text-primary-600 block mb-2 text-base">4. Final Electronics & Latch Check (PLC)</strong>
+                        <p class="mb-2 italic">If all physical checks pass, perform this final software confirmation:</p>
+                        <ol class="list-decimal pl-5 space-y-2">
+                            <li><span class="ui">Enable Device:</span> Go to <span class="ui">Machine</span> > <span class="ui">Settings</span> > <span class="ui">NC</span> > <span class="ui">PLC Variab</span>. Change <span class="val">$A_OUT[4]</span> from <span class="val">0</span> to <span class="val">1</span>.
+                                <br><span class="text-gray-500 text-xs">Device must blink <span class="text-green-600 font-bold">GREEN</span>.</span>
+                            </li>
+                            <li><span class="ui">Monitor PLC:</span> Watch Signal <span class="val">db10.dbx107.1</span> (Nano Feedback).</li>
+                            <li><span class="ui">Test Latch:</span> Press the tool setter plate down by hand.
+                                <ul class="list-disc pl-4 mt-1 text-gray-500">
+                                    <li><strong>Action:</strong> The bit <span class="val">db10.dbx107.1</span> must toggle <span class="ui">High/Low</span>.</li>
+                                    <li><strong>Fail Condition:</strong> If the device lights up but the bit does not flip, the electronics are damaged. <span class="font-bold text-red-600">REPLACE UNIT.</span></li>
+                                </ul>
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="add-buttons-container hidden mt-6 flex gap-2"></div>
+            </div>
+
+            <!-- TAB: Programming & Pairing -->
+            <div id="tab-programming" class="tab-content">
+                <h2 class="text-2xl font-black text-primary-600 border-b-2 border-primary-500 pb-2 mb-6 uppercase tracking-wide">Programming & Pairing</h2>
+                
+                <div class="step-card bg-blue-50 p-4 rounded-lg shadow-sm border border-blue-200 mb-5">
+                    <div class="editable-body text-sm text-blue-900 font-bold tracking-wide">
+                        PREREQUISITE: Device Programming MUST be performed BEFORE Pairing to the IF20 interface.
+                    </div>
+                </div>
+
+                <div class="step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-4">
+                    <div class="editable-body text-sm text-gray-700">
+                        <strong class="text-primary-600 block mb-2 text-base">1. Initial Battery Startup (Automatic)</strong>
+                        <p class="mb-2">When you insert batteries, the device will <strong>automatically</strong> start blinking to show its <em>current</em> settings. This is the "Display Phase".</p>
+                        <p class="bg-yellow-50 border-l-4 border-yellow-400 p-2 text-gray-800 text-xs font-medium">
+                            DO NOT PANIC: Wait for this initial light sequence to finish (approx. 10-15 seconds) if you only want to verify settings. To PROGRAM, you must act during this phase (see below).
+                        </p>
+                    </div>
+                </div>
+
+                <div class="step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-4">
+                    <div class="editable-body text-sm text-gray-700">
+                        <strong class="text-primary-600 block mb-2 text-base">2. How to Program</strong>
+                        <p class="text-xs mb-3 italic text-gray-500">Programming is triggered magnetically. There are two magnetic areas on the probe body labeled <span class="ui">MODE</span> and <span class="ui">SET</span>.</p>
+                        <ol class="list-decimal pl-5 space-y-3 border-l-2 border-primary-200 ml-2">
+                            <li>
+                                <span class="ui">TRIGGER DISPLAY PHASE:</span> Remove the batteries. Wait 30 seconds. Reinsert batteries. The LED will start blinking (current settings).
+                            </li>
+                            <li>
+                                <span class="ui">ENTER PROGRAMMING MODE:</span> While the LEDs are blinking (Display Phase), hold the magnetic pin on the <span class="ui">MODE</span> spot until the LED turns <span class="text-purple-600 font-bold">VIOLET</span>.
+                            </li>
+                            <li>
+                                <span class="ui">CHANGE ADJUSTMENT:</span> Hold the magnetic pin on the <span class="ui">SET</span> spot. The LED color will change. Release the magnet when the desired color (setting) is shown.
+                            </li>
+                            <li>
+                                <span class="ui">NEXT MENU / SAVE:</span> Hold the magnetic pin on the <span class="ui">MODE</span> spot. The LED will flash briefly to confirm the menu change.
+                            </li>
+                            <li>
+                                <span class="ui">EXIT:</span> Repeat steps 3 & 4 for all menus. After the last menu (System Type), the sequence repeats. Stop touching it, and it will return to standby automatically.
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-4">
+                    <div class="editable-body text-sm text-gray-700">
+                        <strong class="text-primary-600 block mb-2 text-base">Firmware A: Standard (Most Tarus Machines)</strong>
+                        <div class="overflow-x-auto mt-2">
+                            <table class="w-full text-sm text-gray-700 border border-gray-200 min-w-[400px]">
+                                <thead class="bg-slate-100">
+                                    <tr>
+                                        <th class="py-2 px-3 text-left border-b font-semibold">Setting</th>
+                                        <th class="py-2 px-3 text-left border-b font-semibold">Required Mode</th>
+                                        <th class="py-2 px-3 text-left border-b font-semibold">LED Color</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="border-b"><td class="py-2 px-3">Transmission Mode</td><td class="py-2 px-3 font-medium">Robust</td><td class="py-2 px-3"><span class="led led-red"></span> Red</td></tr>
+                                    <tr class="border-b"><td class="py-2 px-3">Switch On Time</td><td class="py-2 px-3 font-medium">Fast</td><td class="py-2 px-3"><span class="led led-blue"></span> Blue</td></tr>
+                                    <tr><td class="py-2 px-3">System Type</td><td class="py-2 px-3 font-medium">Twin A</td><td class="py-2 px-3"><span class="led led-red"></span> Red</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-4">
+                    <div class="editable-body text-sm text-gray-700">
+                        <strong class="text-primary-600 block mb-2 text-base">Firmware B: Advanced (Newer Replacement Units)</strong>
+                        <p class="text-xs text-gray-500 mb-2">If your probe cycles through White/Cyan/Magenta, use this table.</p>
+                        <div class="overflow-x-auto mt-2">
+                            <table class="w-full text-sm text-gray-700 border border-gray-200 min-w-[400px]">
+                                <thead class="bg-slate-100">
+                                    <tr>
+                                        <th class="py-2 px-3 text-left border-b font-semibold">Setting</th>
+                                        <th class="py-2 px-3 text-left border-b font-semibold">Required Mode</th>
+                                        <th class="py-2 px-3 text-left border-b font-semibold">LED Color</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="border-b"><td class="py-2 px-3">Transmission Mode</td><td class="py-2 px-3 font-medium">Robust</td><td class="py-2 px-3"><span class="led led-cyan"></span> Cyan</td></tr>
+                                    <tr class="border-b"><td class="py-2 px-3">Switch On Time</td><td class="py-2 px-3 font-medium">Fast</td><td class="py-2 px-3"><span class="led led-white"></span> White</td></tr>
+                                    <tr><td class="py-2 px-3">System Type</td><td class="py-2 px-3 font-medium">Twin A</td><td class="py-2 px-3"><span class="led led-magenta"></span> Magenta</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-8 mt-8">
+                    <div class="editable-body text-sm text-gray-700">
+                        <h3 class="text-primary-600 font-bold text-xl mb-3 border-b pb-2"><i class="fas fa-link mr-2"></i> Pairing to IF20</h3>
+                        <div class="img-container mt-2 mb-3">
+                            <img src="images/if20_face.png" alt="IF20 Interface Dial" onerror="this.style.display='none'">
+                        </div>
+                        <p class="text-xs text-gray-500 mb-3"><i class="fas fa-map-marker-alt mr-1 text-red-500"></i> <strong>Location:</strong> Electrical Cabinet (DIN Rail).</p>
+                        
+                        <div class="mb-4 bg-gray-100 px-3 py-2 rounded text-xs font-bold inline-block border border-gray-300">
+                            REQUIRED: Blum Magnet & Pocket Flathead
+                        </div>
+                        <ol class="list-decimal pl-5 space-y-3">
+                            <li><span class="ui">Set Device Type</span> (S1 Dial):
+                                <ul class="list-disc pl-4 mt-1 text-gray-500">
+                                    <li>Pos <span class="val">1</span> = Touch Probe (TC62)</li>
+                                    <li>Pos <span class="val">2</span> = Z-Nano (Tool Setter)</li>
+                                </ul>
+                            </li>
+                            <li><span class="ui">Enter Pairing Mode:</span> Hold <span class="ui">SET</span> button on IF20 until LED blinks.</li>
+                            <li><span class="ui">Trigger Probe:</span> Hold Magnet against <span class="ui">SET</span> dot on probe. <span class="text-green-600 font-bold">Wait for Solid Green.</span></li>
+                            <li><span class="ui">Save:</span> Return S1 to <span class="val">0</span>. Press <span class="ui">SET</span> once.</li>
+                        </ol>
+                        <p class="text-xs text-red-700 mt-4 font-medium bg-red-50 p-2 border border-red-100 rounded">
+                            Troubleshooting: If the light does not turn green, you MUST turn S1 back to '0' to reset the system before trying again.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="add-buttons-container hidden mt-6 flex gap-2"></div>
+            </div>
+
+            <!-- TAB: TC62 Calibration -->
+            <div id="tab-tc62" class="tab-content">
+                <h2 class="text-2xl font-black text-primary-600 border-b-2 border-primary-500 pb-2 mb-6 uppercase tracking-wide">TC62 Probe Calibration</h2>
+                
+                <div class="step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-4">
+                    <div class="editable-body text-sm text-gray-700">
+                        <div class="text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-wider">Video Tutorial (Auto-playing Muted - Tap Volume to Unmute)</div>
+                        <div class="video-container mb-4">
+                            <video controls autoplay muted loop playsinline preload="metadata" poster="images/tarus_logo.png">
+                                <source src="videos/tc62_cal.mp4" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                        </div>
+                        <div class="img-container mt-2 mb-3">
+                            <img src="images/tc62_probe.png" alt="TC62 Probe" onerror="this.style.display='none'">
+                        </div>
+                        <div class="bg-slate-100 p-3 rounded text-xs border border-slate-300 mt-3">
+                            <strong>Required Tools:</strong> Calibration Ring Gauge, Mag-base & Indicator (0.0001"), 0.0010" Shim Stock, Allen Wrenches, Flathead, Blum Magnet.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-card bg-yellow-50 p-4 rounded-lg shadow-sm border-l-4 border-l-yellow-500 border border-yellow-200 mb-4">
+                    <div class="editable-body text-sm text-yellow-900 font-medium">
+                        <strong>CRITICAL WARNING:</strong> Never tighten the small adjustment setscrews against a locked-down main screw. You will strip the threads.
+                    </div>
+                </div>
+
+                <div class="step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-4">
+                    <div class="editable-body text-sm text-gray-700">
+                        <strong class="text-primary-600 block mb-3 text-lg border-b pb-1">Step 1: Assembly & Mechanical Zero</strong>
+                        <ol class="list-decimal pl-5 space-y-3">
+                            <li><span class="ui">Screw Sequence (Crucial):</span> Locate the large flathead screw and the hex setscrew on the neck.
+                                <ul class="list-disc pl-4 mt-1 text-gray-500">
+                                    <li>Lightly snug the flathead first.</li>
+                                    <li>Then snug the hex setscrew.</li>
+                                    <li><strong>Note:</strong> They must be firm but <em>not fully torqued</em> yet. The body needs to be able to shift slightly for adjustment.</li>
+                                </ul>
+                            </li>
+                            <li><span class="ui">Indicator Setup:</span> Mount a 0.0001" indicator on a mag-base and sweep the stylus ball.</li>
+                            <li><span class="ui">Adjustment:</span> Locate the 4 small setscrews at the base.
+                                <ul class="list-disc pl-4 mt-1 text-gray-500">
+                                    <li>Loosen the screw on the "High" side slightly.</li>
+                                    <li>Tighten the screw on the "Low" side.</li>
+                                </ul>
+                            </li>
+                            <li><span class="ui">Final Lock:</span> Once runout is &lt; <span class="val">0.0002"</span>, <strong>fully torque</strong> the main flathead and hex neck screws to lock the assembly.</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-4">
+                    <div class="editable-body text-sm text-gray-700">
+                        <strong class="text-primary-600 block mb-2 text-lg border-b pb-1">Step 2: TarusNC Calibration</strong>
+                        <div class="mb-3 mt-2"><span class="badge-tarus">TARUS NC ONLY</span> <span class="text-xs text-gray-500 italic">(Siemens Operate not required)</span></div>
+                        <ol class="list-decimal pl-5 space-y-4">
+                            <li><span class="ui">Set Surface Reference (Spindle Face Touch-off):</span>
+                                <ul class="list-disc pl-4 mt-1 space-y-1 text-gray-600">
+                                    <li><strong>REMOVE</strong> the probe from the spindle.</li>
+                                    <li>Select <span class="ui">"No Tool"</span> (Empty Spindle) in the TarusNC Tool Table.</li>
+                                    <li>Using 0.0010" shim stock, jog the <strong>Spindle Face</strong> down to a flat reference surface until the shim drags.</li>
+                                    <li><span class="ui">Preset Z-Axis</span> to <span class="val">0.0000</span> <span class="text-xs italic">(You can also set a Target value of 0.0010 to be exact)</span>.</li>
+                                    <li>Jog Z-Axis away (Retract) to a safe clearance height.</li>
+                                </ul>
+                            </li>
+                            <li><span class="ui">Prepare Probe Tool:</span>
+                                <ul class="list-disc pl-4 mt-1 space-y-1 text-gray-600">
+                                    <li><strong>INSTALL</strong> the probe back into the spindle.</li>
+                                    <li>Measure the probe length (Spindle Face to Stylus tip).</li>
+                                    <li><span class="ui">SELECT</span> the Probe Tool in the TarusNC Tool Table (make active).</li>
+                                    <li>Enter this <strong>Actual Measured Length</strong> into the TarusNC Tool Table for the Probe Tool ID.</li>
+                                </ul>
+                            </li>
+                            <li><span class="ui">Execute Z-Axis Calibration:</span>
+                                <ul class="list-disc pl-4 mt-1 space-y-1 text-gray-600">
+                                    <li>Jog Z axis down to approximately <strong>1 inch (25mm)</strong> above the reference surface you just touched off on.</li>
+                                    <li>Start the <span class="ui">Z-Calibration Cycle</span>. The machine will probe the surface to determine tool length.</li>
+                                </ul>
+                            </li>
+                            <li><span class="ui">Ring Calibration (XY):</span>
+                                <ul class="list-disc pl-4 mt-1 space-y-1 text-gray-600">
+                                    <li>Jog probe to the approximate center of the Ring Gauge.</li>
+                                    <li>Enter <strong>Exact Ring Diameter</strong> (etched on the ring).</li>
+                                    <li>Press <span class="ui">Cycle Start</span>.</li>
+                                </ul>
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="add-buttons-container hidden mt-6 flex gap-2"></div>
+            </div>
+
+            <!-- TAB: Z-Nano Calibration -->
+            <div id="tab-znano" class="tab-content">
+                <h2 class="text-2xl font-black text-primary-600 border-b-2 border-primary-500 pb-2 mb-6 uppercase tracking-wide">Z-Nano Bump Calibration</h2>
+
+                <div class="step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-4">
+                    <div class="editable-body text-sm text-gray-700">
+                        <div class="text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-wider">Video Tutorial (Auto-playing Muted - Tap Volume to Unmute)</div>
+                        <div class="video-container mb-4">
+                            <video controls autoplay muted loop playsinline preload="metadata" poster="images/tarus_logo.png">
+                                <source src="videos/znano_cal.mp4" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                        </div>
+                        <div class="img-container mt-2 mb-3">
+                            <img src="images/znano_unit.png" alt="Z-Nano Unit" onerror="this.style.display='none'">
+                        </div>
+                        <div class="bg-blue-50 text-blue-900 font-medium p-3 rounded text-xs border border-blue-200 mt-3">
+                            <strong>Prerequisite:</strong> You need a "Precision Rod" of known length (e.g., <span class="val">180.171mm</span>).
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-4">
+                    <div class="editable-body text-sm text-gray-700">
+                        <strong class="text-primary-600 block mb-3 text-lg border-b pb-1">Phase 1: Un-Hide Siemens Operate</strong>
+                        <ol class="list-decimal pl-5 space-y-2">
+                            <li><span class="ui">Close Apps:</span> Use Task Manager to close TarusNC, Sproxy, and Sinumerik processes.</li>
+                            <li><span class="ui">Navigate:</span> Open Windows Explorer > <kbd>C:/Program Files (x86)/Siemens/Motion Control/siemens/sinumerik/hmi/cfg</kbd>.</li>
+                            <li><span class="ui">Rename Files:</span>
+                                <ul class="list-disc pl-4 mt-1 text-gray-500">
+                                    <li>Rename <kbd>systemconfiguration.ini</kbd> to <kbd>systemconfiguration-Hide.ini</kbd>.</li>
+                                    <li>Rename <kbd>systemconfiguration-Show.ini</kbd> to <kbd>systemconfiguration.ini</kbd>.</li>
+                                </ul>
+                            </li>
+                            <li><span class="ui">Relaunch:</span> Start TarusNC. The Siemens Operate window should now be visible.</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-4">
+                    <div class="editable-body text-sm text-gray-700">
+                        <strong class="text-primary-600 block mb-3 text-lg border-b pb-1">Phase 2: Data Entry & Calculation</strong>
+                        <ol class="list-decimal pl-5 space-y-4">
+                            <li><span class="badge-tarus">TARUS NC</span> <span class="ui">Tool Setup:</span> In Tool Manager, create a tool with the EXACT length of your rod. Make it Active.</li>
+                            <li><span class="badge-tarus">TARUS NC</span> <span class="ui">Position Head:</span> Execute the A & C axis to <span class="val">A-90 C0</span>.</li>
+                            <li><span class="badge-siemens">SIEMENS OPERATE</span> <span class="ui">Verify Flange Offset:</span> 
+                                <br><span class="text-gray-500 text-xs italic">(Minimize TarusNC to see Operate)</span>
+                                <br>Go to <span class="ui">Operate</span> > <span class="ui">Machine</span> > <span class="ui">Setup</span> > <span class="ui">Channel MD</span> > <span class="val">24550[2]</span>. Write down this value.
+                                <br>Go to <span class="ui">System Data</span> > <span class="ui">NC Data</span> > <span class="ui">Cycles</span> > <span class="ui">Manufacturer Cycles</span> > <span class="val">BZ9953</span>. Ensure the Flange Offset matches.
+                            </li>
+                            <li><span class="badge-siemens">SIEMENS OPERATE</span> <span class="ui">Manual Latch:</span> 
+                                <ul class="list-disc pl-4 mt-1 text-gray-600">
+                                    <li>Enable <span class="val">$A_OUT[4]</span> (<span class="ui">Machine</span> > <span class="ui">Settings</span> > <span class="ui">NC</span> > <span class="ui">PLC Variab</span>) -> Bump blinks GREEN.</li>
+                                    <li>Handwheel the rod carefully into the bump until it turns <span class="text-red-600 font-bold">BLINKING RED</span>.</li>
+                                    <li>Record the Machine Y position from the Axis Readout.</li>
+                                </ul>
+                            </li>
+                            <li><span class="ui">Calculate Latch Position:</span>
+                                <br><kbd class="block mt-2 text-center text-primary-700 p-2 text-sm bg-slate-100 border border-slate-300 overflow-x-auto">Y_Latch = (Machine_Y) - (Tool_Length) - (Flange_Offset)</kbd>
+                            </li>
+                            <li><span class="badge-siemens">SIEMENS OPERATE</span> <span class="ui">Update BZ9953:</span> Open <span class="val">BZ9953</span> again.
+                                <ul class="list-disc pl-4 mt-1 text-gray-600">
+                                    <li>Enter Calculated Y into Label 101 <span class="val">_BZN_[13]</span>.</li>
+                                    <li>Enter Eyeballed X into <span class="val">_BZN_[14]</span>.</li>
+                                    <li>Enter Eyeballed Z into <span class="val">_BZN_[15]</span>.</li>
+                                </ul>
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-4">
+                    <div class="editable-body text-sm text-gray-700">
+                        <strong class="text-primary-600 block mb-3 text-lg border-b pb-1">Phase 3: Execution</strong>
+                        <ol class="list-decimal pl-5 space-y-4">
+                            <li><span class="badge-siemens">SIEMENS OPERATE</span> <span class="ui">Set Bump Number:</span> In Program Manager, open <kbd>BLUM_CAL_A.MPF</kbd>. Set <span class="val">_BZM_R[48]</span> to your bump number (e.g., <span class="val">1</span>).</li>
+                            <li><span class="badge-siemens">SIEMENS</span> + <span class="badge-sproxy">SPROXY</span> <span class="ui">Run Cycle:</span> Press <span class="ui">Cycle Start</span> on the Sproxy Machine Panel. The machine will seek, trigger, and retract.</li>
+                            <li><span class="badge-tarus">TARUS NC</span> <span class="ui">Verification:</span>
+                                <br><span class="text-red-600 text-xs font-bold italic">IMPORTANT: Ensure Siemens Operate is on "Settings" softkey (or neutral screen) before running TarusNC cycle.</span>
+                                <ul class="list-disc pl-4 mt-1 text-gray-600">
+                                    <li>Go to TarusNC > Tools > Auto > Select Bump #1.</li>
+                                    <li>Run the routine.</li>
+                                    <li>The tool must measure within <strong>+/- 0.050mm</strong> of the rod length.</li>
+                                </ul>
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="add-buttons-container hidden mt-6 flex gap-2"></div>
+            </div>
+
+            <!-- TAB: Diagnostics -->
+            <div id="tab-diagnostics" class="tab-content">
+                <h2 class="text-2xl font-black text-primary-600 border-b-2 border-primary-500 pb-2 mb-6 uppercase tracking-wide">Diagnostics & Troubleshooting</h2>
+                
+                <h3 class="font-bold text-slate-800 text-sm uppercase mb-3 mt-4 tracking-wide"><i class="fas fa-wifi mr-2 text-slate-400"></i> RC66 Receiver LED Guide</h3>
+                <div class="step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-6">
+                    <div class="editable-body text-sm text-gray-700">
+                        <div class="img-container mt-2 mb-3">
+                            <img src="images/rc66_leds.png" alt="RC66 LED Diagram" onerror="this.style.display='none'">
+                        </div>
+                        <p class="text-xs text-gray-500 mb-3"><i class="fas fa-map-marker-alt mr-1 text-red-500"></i> <strong>Location:</strong> Front of the machine on the exterior of the Y column.</p>
+                        <div class="overflow-x-auto mt-2">
+                            <table class="w-full text-sm text-gray-700 border border-gray-200 min-w-[350px]">
+                                <thead class="bg-slate-100">
+                                    <tr>
+                                        <th class="py-2 px-3 text-left border-b font-semibold">LED</th>
+                                        <th class="py-2 px-3 text-left border-b font-semibold">State</th>
+                                        <th class="py-2 px-3 text-left border-b font-semibold">Diagnosis</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="border-b"><td class="py-3 px-3 font-bold">STATUS</td><td class="px-3"><span class="led led-green"></span> Solid</td><td class="px-3">System Ready</td></tr>
+                                    <tr class="border-b"><td class="py-3 px-3"></td><td class="px-3"><span class="led led-red"></span> Solid</td><td class="px-3"><span class="font-bold text-red-600">Triggered</span> (Stuck open if in air)</td></tr>
+                                    <tr class="border-b"><td class="py-3 px-3"></td><td class="px-3"><span class="led led-red led-blink"></span> Blink</td><td class="px-3"><span class="font-bold text-red-600">Error</span> (Check Cable/IF20)</td></tr>
+                                    <tr class="border-b"><td class="py-3 px-3 font-bold">BATTERY</td><td class="px-3"><span class="led led-red"></span> Solid</td><td class="px-3"><span class="font-bold text-orange-600">Replace Battery</span></td></tr>
+                                    <tr><td class="py-3 px-3 font-bold">RECEIVE</td><td class="px-3"><span class="led led-off"></span> OFF</td><td class="px-3">No Signal (Sleep/Blocked)</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="font-bold text-slate-800 text-sm uppercase mb-3 mt-6 tracking-wide"><i class="fas fa-bullseye mr-2 text-slate-400"></i> TC62 / Z-Nano LED Guide</h3>
+                <div class="step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-6">
+                    <div class="editable-body text-sm text-gray-700">
+                        <div class="mb-4 bg-slate-100 text-gray-700 p-3 rounded text-xs border border-slate-300">
+                            <strong>Pro Tip:</strong> Shipped by air? Internal pressure causes errors. Loosen cap 1/2 turn, trigger 5x, wait 1m, retighten.
+                        </div>
+                        <div class="overflow-x-auto mt-2">
+                            <table class="w-full text-sm text-gray-700 border border-gray-200 min-w-[350px]">
+                                <thead class="bg-slate-100">
+                                    <tr>
+                                        <th class="py-2 px-3 text-left border-b font-semibold">LED Pattern</th>
+                                        <th class="py-2 px-3 text-left border-b font-semibold">Meaning / Fix</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="border-b"><td class="py-3 px-3"><span class="led led-red"></span> Solid Red</td><td class="px-3"><strong>Triggered / Jammed.</strong></td></tr>
+                                    <tr class="border-b"><td class="py-3 px-3"><span class="led led-red led-blink"></span> Fast Flash</td><td class="px-3"><strong>Pressure / Battery.</strong> Check voltage.</td></tr>
+                                    <tr class="border-b"><td class="py-3 px-3"><span class="led led-green led-blink"></span> <span class="led led-blue led-blink"></span></td><td class="px-3"><strong>Mode Mismatch.</strong> Needs "TC" mode. Reprogram.</td></tr>
+                                    <tr><td class="py-3 px-3"><span class="led led-off"></span> No Light</td><td class="px-3"><strong>Dead / Asleep.</strong> Check Wake Up signal.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="font-bold text-slate-800 text-sm uppercase mb-3 mt-8 border-b border-slate-300 pb-1 tracking-wide"><i class="fas fa-book-open mr-2 text-slate-400"></i> Manufacturer Reference Manuals</h3>
+                <div class="grid gap-4 mt-4">
+                    <div class="step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200">
+                        <div class="editable-body text-sm text-gray-700">
+                            <h4 class="font-bold text-primary-600 mb-2">IF20 Interface Unit</h4>
+                            <ul class="list-disc pl-5 space-y-1">
+                                <li><strong>No Function / LEDs Off:</strong> Check 24V power supply (X1, Pin 1+2). Check polarity.</li>
+                                <li><strong>Outputs not switching:</strong> Check if PLC logic is Active High or Active Low (Dip switches S2).</li>
+                                <li><strong>Error LED On:</strong> Cable break to RC66, Short circuit in cable, or Probe Battery Low/Error.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200">
+                        <div class="editable-body text-sm text-gray-700">
+                            <h4 class="font-bold text-primary-600 mb-2">RC66 Receiver</h4>
+                            <ul class="list-disc pl-5 space-y-1">
+                                <li><strong>No Reception (LEDs Off):</strong> Metal chips covering receiver? Probe out of range? Probe battery dead?</li>
+                                <li><strong>Status LED Flashes Red:</strong> System error. Check cable X2. Check for interference from other 2.4GHz sources (Wi-Fi).</li>
+                                <li><strong>Interference:</strong> If signal drops, try changing Frequency Channel (Requires Blum software/adapter).</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200">
+                        <div class="editable-body text-sm text-gray-700">
+                            <h4 class="font-bold text-primary-600 mb-2">TC62 / Z-Nano Probes</h4>
+                            <ul class="list-disc pl-5 space-y-1">
+                                <li><strong>Non-Repeatable (Scatter):</strong> Stylus loose? Measuring speed too high? Liquid/Chips? Machine vibration?</li>
+                                <li><strong>False Triggering:</strong> Vibration too high (reduce rapid). Stylus too heavy/long?</li>
+                                <li><strong>No Trigger:</strong> Probe not enabled (Check <span class="val">$A_OUT</span>). Signal path blocked by fixture.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="add-buttons-container hidden mt-6 flex gap-2"></div>
+            </div>
+
+            <!-- TAB: Specs -->
+            <div id="tab-specs" class="tab-content">
+                <h2 class="text-2xl font-black text-primary-600 border-b-2 border-primary-500 pb-2 mb-6 uppercase tracking-wide">Device Specifications</h2>
+                
+                <div class="step-card bg-slate-900 text-white p-6 rounded-lg shadow-md mb-4 border border-slate-800">
+                    <div class="editable-body text-sm">
+                        <div class="grid grid-cols-2 gap-y-4 gap-x-6">
+                            <div class="text-slate-400 font-medium">Battery Type (Probes)</div>
+                            <div class="font-mono font-bold text-primary-400">2x Saft LS 14250 (3.6V)</div>
+                            
+                            <div class="text-slate-400 font-medium">Operating Frequency</div>
+                            <div class="font-medium">2.4 GHz (WLAN Band)</div>
+                            
+                            <div class="text-slate-400 font-medium">Environmental Rating</div>
+                            <div class="font-medium">IP68</div>
+                            
+                            <div class="text-slate-400 font-medium">Interface Power (IF20)</div>
+                            <div class="font-mono text-primary-400">24V DC</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="add-buttons-container hidden mt-6 flex gap-2"></div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Floating Formatter (Edit Mode Only) -->
+    <div id="floating-formatter" class="hidden fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-800 p-2 rounded-lg shadow-2xl flex gap-2 z-50 border border-slate-700">
+        <button onclick="formatText('bold')" class="w-8 h-8 rounded bg-slate-700 hover:bg-slate-600 text-white font-bold" title="Bold">B</button>
+        <button onclick="formatText('italic')" class="w-8 h-8 rounded bg-slate-700 hover:bg-slate-600 text-white italic" title="Italic">I</button>
+        <button onclick="formatText('insertUnorderedList')" class="w-8 h-8 rounded bg-slate-700 hover:bg-slate-600 text-white" title="List"><i class="fas fa-list-ul"></i></button>
+        <div class="w-px bg-slate-600 mx-1"></div>
+        <button onclick="wrapSelection('val')" class="px-2 h-8 rounded bg-slate-700 hover:bg-slate-600 text-primary-400 font-mono text-xs font-bold" title="Value / Code">val</button>
+        <button onclick="wrapSelection('ui')" class="px-2 h-8 rounded bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold" title="UI Element">UI</button>
+        <button onclick="wrapSelection('', 'kbd')" class="px-2 h-8 rounded bg-slate-700 hover:bg-slate-600 text-slate-300 font-mono text-xs font-bold" title="Keyboard / Path">kbd</button>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // Tab Navigation
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                // Remove active states
+                document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.nav-link').forEach(l => {
+                    l.classList.remove('active-tab');
+                    l.classList.add('text-slate-300');
+                    l.classList.remove('text-white');
+                });
+                
+                // Add active state
+                const targetId = link.getAttribute('data-target');
+                document.getElementById(targetId).classList.add('active');
+                link.classList.add('active-tab', 'text-white');
+                link.classList.remove('text-slate-300');
+
+                // Mobile close logic
+                if(window.innerWidth < 768) {
+                    document.getElementById('sidebar').classList.add('-translate-x-full');
+                    document.getElementById('mobile-backdrop').classList.add('hidden');
+                }
+            });
+        });
+
+        // Mobile Menu Toggles
+        document.getElementById('mobile-menu-btn').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.remove('-translate-x-full');
+            document.getElementById('mobile-backdrop').classList.remove('hidden');
+        });
+        document.getElementById('mobile-backdrop').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.add('-translate-x-full');
+            document.getElementById('mobile-backdrop').classList.add('hidden');
+        });
+
+        // Editor Logic
+        let isEditMode = false;
+        
+        function toggleEditMode() {
+            isEditMode = !isEditMode;
+            const btn = document.getElementById('edit-toggle-btn');
+            const formatter = document.getElementById('floating-formatter');
+            const exportTools = document.getElementById('export-tools');
+            
+            if (isEditMode) {
+                document.body.classList.add('edit-mode');
+                formatter.classList.remove('hidden');
+                exportTools.classList.remove('hidden');
+                btn.innerHTML = '<i class="fas fa-times mr-2"></i> Exit Edit Mode';
+                btn.classList.replace('bg-slate-700', 'bg-red-600');
+                
+                // Inject Toolbars
+                document.querySelectorAll('.step-card').forEach(card => {
+                    if(!card.querySelector('.card-toolbar')) injectToolbar(card);
+                });
+                
+                // Inject Add Buttons
+                document.querySelectorAll('.add-buttons-container').forEach(container => {
+                    container.classList.remove('hidden');
+                    if(container.innerHTML === '') {
+                        container.innerHTML = `
+                            <button onclick="addNewCard(this, 'step')" class="bg-white border-2 border-dashed border-primary-300 text-primary-700 hover:bg-primary-50 px-4 py-2 rounded text-sm font-bold flex-1 transition-colors"><i class="fas fa-plus mr-1"></i> Add Step</button>
+                            <button onclick="addNewCard(this, 'info')" class="bg-white border-2 border-dashed border-slate-300 text-slate-600 hover:bg-slate-50 px-4 py-2 rounded text-sm font-bold flex-1 transition-colors"><i class="fas fa-info-circle mr-1"></i> Add Info Block</button>
+                        `;
+                    }
+                });
+
+            } else {
+                document.body.classList.remove('edit-mode');
+                formatter.classList.add('hidden');
+                exportTools.classList.add('hidden');
+                btn.innerHTML = '<i class="fas fa-edit mr-2"></i> Enable Edit Mode';
+                btn.classList.replace('bg-red-600', 'bg-slate-700');
+                
+                // Cleanup Toolbars and Editable state
+                document.querySelectorAll('.card-toolbar').forEach(t => t.remove());
+                document.querySelectorAll('.add-buttons-container').forEach(c => c.classList.add('hidden'));
+                document.querySelectorAll('.editable-body').forEach(b => {
+                    b.contentEditable = "false";
+                    b.closest('.step-card').classList.remove('is-editing');
+                });
+            }
+        }
+
+        function injectToolbar(card) {
+            const toolbar = document.createElement('div');
+            toolbar.className = 'card-toolbar absolute top-3 right-4 z-20 flex items-center gap-2 bg-slate-800 p-1.5 rounded-lg shadow-lg';
+            
+            // Checkbox
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.className = 'field-guide-cb cursor-pointer mr-1';
+            cb.checked = true;
+            cb.title = 'Include in Custom Export';
+            
+            // Up Arrow
+            const btnUp = document.createElement('button');
+            btnUp.innerHTML = '<i class="fas fa-arrow-up text-xs"></i>';
+            btnUp.className = 'w-6 h-6 bg-slate-700 text-white rounded hover:bg-slate-600 flex items-center justify-center';
+            btnUp.onclick = () => {
+                const prev = card.previousElementSibling;
+                if(prev && prev.classList.contains('step-card')) {
+                    card.parentNode.insertBefore(card, prev);
+                    card.scrollIntoView({behavior: 'smooth', block: 'center'});
+                }
+            };
+
+            // Down Arrow
+            const btnDown = document.createElement('button');
+            btnDown.innerHTML = '<i class="fas fa-arrow-down text-xs"></i>';
+            btnDown.className = 'w-6 h-6 bg-slate-700 text-white rounded hover:bg-slate-600 flex items-center justify-center';
+            btnDown.onclick = () => {
+                const next = card.nextElementSibling;
+                if(next && next.classList.contains('step-card')) {
+                    card.parentNode.insertBefore(next, card);
+                    card.scrollIntoView({behavior: 'smooth', block: 'center'});
+                }
+            };
+
+            // Edit Text
+            const btnEdit = document.createElement('button');
+            btnEdit.innerHTML = '<i class="fas fa-pen text-xs"></i>';
+            btnEdit.className = 'w-6 h-6 bg-primary-500 text-slate-900 rounded hover:bg-yellow-400 flex items-center justify-center ml-2';
+            btnEdit.onclick = () => {
+                const body = card.querySelector('.editable-body');
+                if(!body) return;
+                const isEditing = body.contentEditable === "true";
+                body.contentEditable = !isEditing;
+                card.classList.toggle('is-editing', !isEditing);
+                if(!isEditing) body.focus();
+            };
+
+            // Delete
+            const btnDel = document.createElement('button');
+            btnDel.innerHTML = '<i class="fas fa-trash text-xs"></i>';
+            btnDel.className = 'w-6 h-6 bg-red-500 text-white rounded hover:bg-red-400 flex items-center justify-center';
+            btnDel.onclick = () => {
+                if(confirm('Are you sure you want to delete this block?')) card.remove();
+            };
+
+            toolbar.appendChild(cb);
+            toolbar.appendChild(btnUp);
+            toolbar.appendChild(btnDown);
+            toolbar.appendChild(btnEdit);
+            toolbar.appendChild(btnDel);
+            card.appendChild(toolbar);
+        }
+
+        function addNewCard(btn, type) {
+            const container = btn.closest('.tab-content');
+            const addBtnContainer = container.querySelector('.add-buttons-container');
+            
+            const card = document.createElement('div');
+            let content = '';
+            
+            if(type === 'step') {
+                card.className = 'step-card bg-white p-5 rounded-lg shadow-sm border border-gray-200 mb-4';
+                content = `
+                    <strong class="text-primary-600 block mb-2 text-base">New Step Title</strong>
+                    <ol class="list-decimal pl-5 space-y-2">
+                        <li>New instruction step...</li>
+                    </ol>
+                `;
+            } else {
+                card.className = 'step-card bg-blue-50 p-4 rounded-lg shadow-sm border border-blue-200 mb-4';
+                content = `
+                    <div class="text-blue-900 font-medium">
+                        <strong>Note:</strong> Enter important information here.
+                    </div>
+                `;
+            }
+            
+            card.innerHTML = `<div class="editable-body text-sm text-gray-700">${content}</div>`;
+            container.insertBefore(card, addBtnContainer);
+            if(isEditMode) injectToolbar(card);
+            card.scrollIntoView({behavior: 'smooth', block: 'center'});
+        }
+
+        // Floating Formatter Functions
+        function formatText(command) {
+            document.execCommand(command, false, null);
+        }
+
+        function wrapSelection(className, tagName = 'span') {
+            const selection = window.getSelection();
+            if (!selection.rangeCount || selection.isCollapsed) return;
+            const range = selection.getRangeAt(0);
+            
+            // Validate we are inside an editable body
+            const nodeInsideEditable = range.commonAncestorContainer.nodeType === 3 ? 
+                range.commonAncestorContainer.parentNode.closest('.editable-body') : 
+                range.commonAncestorContainer.closest('.editable-body');
+                
+            if (!nodeInsideEditable) return;
+
+            const content = range.extractContents();
+            const el = document.createElement(tagName);
+            if (className) el.className = className;
+            el.appendChild(content);
+            range.insertNode(el);
+            selection.removeAllRanges();
+        }
+
+        // Export Function
+        function exportGuide(isCustom) {
+            // Exit active editing states visually before clone
+            document.querySelectorAll('.editable-body').forEach(b => {
+                b.contentEditable = "false";
+                b.closest('.step-card').classList.remove('is-editing');
+            });
+
+            // Clone Document
+            const clone = document.documentElement.cloneNode(true);
+            const cloneBody = clone.querySelector('body');
+            cloneBody.classList.remove('edit-mode');
+
+            if (isCustom) {
+                // Filter out unchecked cards
+                const allCards = clone.querySelectorAll('.step-card');
+                allCards.forEach(card => {
+                    const cb = card.querySelector('.field-guide-cb');
+                    if(cb && !cb.checked) card.remove();
+                });
+
+                // Remove empty tabs from nav and content
+                const allTabs = clone.querySelectorAll('.tab-content');
+                allTabs.forEach(tab => {
+                    const cardsLeft = tab.querySelectorAll('.step-card');
+                    if(cardsLeft.length === 0) {
+                        const tabId = tab.id;
+                        tab.remove();
+                        const navLink = clone.querySelector(`[data-target="${tabId}"]`);
+                        if(navLink) navLink.closest('li').remove();
+                    }
+                });
+                
+                // Retitle Custom Guide
+                const titleEl = clone.querySelector('title');
+                if(titleEl) titleEl.innerText = "Custom Field Guide - Blum";
+                const h1El = clone.querySelector('h1.text-sm');
+                if(h1El) h1El.innerText = "CUSTOM FIELD GUIDE";
+            }
+
+            // Strip all Editor UI from Clone
+            clone.querySelectorAll('.card-toolbar, .add-buttons-container, #floating-formatter, #edit-toggle-btn, #export-tools').forEach(el => el.remove());
+            
+            // Compile HTML string
+            const htmlContent = "<!DOCTYPE html>\n" + clone.outerHTML;
+            const blob = new Blob([htmlContent], {type: "text/html"});
+            const url = URL.createObjectURL(blob);
+            
+            // Trigger Download
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = isCustom ? "Tarus_Custom_Blum_Guide.html" : "Tarus_Master_Blum_Guide.html";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            // Re-enable Edit States if we were in edit mode
+            if(isEditMode) {
+                document.querySelectorAll('.step-card.is-editing .editable-body').forEach(b => b.contentEditable = "true");
+            }
+        }
+    </script>
+</body>
+</html>
